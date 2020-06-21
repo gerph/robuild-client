@@ -50,6 +50,7 @@ typedef struct global_s {
     int output_ends_in_newline;
     int last_message_was_output;
     int quiet;
+    int really_quiet;
     int rc;
 } global_t;
 
@@ -426,36 +427,39 @@ void robuild_msg_output(wsclient *c, cJSON *json) {
         protoerror("'output' received when not compiling");
     }
 
-    if (!global.last_message_was_output)
+    if (!global.really_quiet)
     {
-        if (!global.quiet)
-            printf("Output:\n");
-        global.output_ends_in_newline = 1;
-    }
-
-    while (*msg)
-    {
-        char *newline = strchr(msg, '\n');
-
-        if (global.output_ends_in_newline)
+        if (!global.last_message_was_output)
         {
             if (!global.quiet)
-                printf("  ");
+                printf("Output:\n");
+            global.output_ends_in_newline = 1;
         }
 
-        if (newline == NULL)
+        while (*msg)
         {
-            global.output_ends_in_newline = 0;
-            printf("%s", msg);
-            msg += strlen(msg);
-        }
-        else
-        {
-            /* There is a newline in this line */
-            global.output_ends_in_newline = 1;
-            *newline = '\0';
-            printf("%s\n", msg);
-            msg = newline + 1;
+            char *newline = strchr(msg, '\n');
+
+            if (global.output_ends_in_newline)
+            {
+                if (!global.quiet)
+                    printf("  ");
+            }
+
+            if (newline == NULL)
+            {
+                global.output_ends_in_newline = 0;
+                printf("%s", msg);
+                msg += strlen(msg);
+            }
+            else
+            {
+                /* There is a newline in this line */
+                global.output_ends_in_newline = 1;
+                *newline = '\0';
+                printf("%s\n", msg);
+                msg = newline + 1;
+            }
         }
     }
     global.last_message_was_output = 1;
@@ -560,7 +564,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqi:o:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQi:o:")) != EOF) {
         switch (c) {
             case 'i': /* input file */
                 global.source_file = optarg;
@@ -574,12 +578,18 @@ int main(int argc, char **argv) {
                 global.quiet = 1;
                 break;
 
+            case 'Q':
+                global.really_quiet = 1;
+                global.quiet = 1;
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
   -h  Display this help message\n\
   -i  Specify input file\n\
   -q  Quiet non-output information\n\
+  -Q  Quiet all non-failure information\n\
   -o  Specify output file prefix; will be suffixed with `,xxx` filetype\n", banner, syntax);
                 exit(0);
         }
