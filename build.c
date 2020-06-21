@@ -4,6 +4,11 @@
 #include <errno.h>
 #include <limits.h>
 
+#include "getopt.h"
+
+#include "VersionNum"
+
+
 /* Enable this to output some debug messages */
 //#define DEBUG
 
@@ -34,7 +39,7 @@ void libwsclient_close(wsclient *client);
 typedef struct global_s {
     char *server_uri;
     char *source_file;
-    char *output_file;
+    char *output_prefix;
     enum {
         s_connecting,
         s_source_sent,
@@ -48,6 +53,11 @@ typedef struct global_s {
 } global_t;
 
 global_t global = {0};
+
+
+static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
+static char syntax[]="Syntax: riscos-build-online [-h] -i <infile> [-o <outfile>]\n";
+
 
 
 /**
@@ -330,7 +340,7 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
 
         FILE *fh;
         char output_filename[1024];
-        sprintf(output_filename, "%s,%03x", global.output_file, filetype);
+        sprintf(output_filename, "%s,%03x", global.output_prefix, filetype);
         fh = fopen(output_filename, "wb");
         if (!fh)
         {
@@ -524,11 +534,39 @@ int onmessage(wsclient *c, wsclient_message *msg) {
 }
 
 int main(int argc, char **argv) {
+    int c;
+
     global.server_uri = "ws://jfpatch.riscos.online/ws";
-    global.source_file = argv[1];
-    global.output_file = "output";
+    global.source_file = NULL;
+    global.output_prefix = "output";
     global.state = s_connecting;
     global.rc = 99; /* Something that looks odd */
+
+    if (argc < 2) {
+        printf("%s%s", banner, syntax);
+        exit(0);
+    }
+
+    while ((c = getopt(argc, argv, "hi:o:")) != EOF) {
+        switch (c) {
+            case 'i': /* input file */
+                global.source_file = optarg;
+                break;
+
+            case 'o':
+                global.output_prefix = optarg;
+                break;
+
+            case 'h':
+                printf("\
+%s%s\n\
+  -h  Display this help message\n\
+  -i  Specify input file\n\
+  -o  Specify output file prefix; will be suffixed with `,xxx` filetype\n", banner, syntax);
+                exit(0);
+        }
+  }
+
 
     /* FIXME: configurable websocket server */
     wsclient *client = libwsclient_new(global.server_uri);
