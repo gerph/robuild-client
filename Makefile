@@ -7,6 +7,13 @@ INCLUDES = -Ilibwsclient -IcJSON
 
 all: riscos-build-online
 
+clean:
+	-rm -rf *.o
+	-cd libwsclient && make clean
+	-rm libwsclient/Makefile
+	-rm libwsclient/configure
+	-cd cJSON && make clean
+
 libwsclient/configure:
 	cd libwsclient && ./autogen.sh
 

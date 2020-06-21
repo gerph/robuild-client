@@ -547,5 +547,7 @@ int main(int argc, char **argv) {
     libwsclient_run(client);
     //blocks until run thread for client is done.
     libwsclient_finish(client);
-    return 0;
+
+    // Return the final RC we got
+    return global.rc;
 }
