@@ -1,9 +1,22 @@
 ## RISCOS Build client
 
 This repository contains a WebSockets client for the RISC OS Build service at
-[https://build.riscos.online/].
+https://build.riscos.online/.
 
-FIXME: Fill in some more details.
+## Usage
+
+To use the tool:
+
+    ./riscos-build-online -i <source-file-or-zip> -o <output-prefix>
+
+Will run the build on the service, and report the results to the console. The final output binary will be written to the output-prefix, suffixed by `,xxx` for the filetype that was generated.
+The return code from the tool will be propagated from the build.
+
+Other options that can be used:
+
+* `-q`: Only write the output from the build process to the terminal.
+* `-Q`: Write no output to the terminal except errors.
+* `-b`: Write all the build process's output to a file.
 
 ## Prerequisites
 
