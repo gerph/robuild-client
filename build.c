@@ -40,6 +40,8 @@ typedef struct global_s {
     char *server_uri;
     char *source_file;
     char *output_prefix;
+    char *build_output_file;
+    FILE *build_output_fh;
     enum {
         s_connecting,
         s_source_sent,
@@ -54,12 +56,7 @@ typedef struct global_s {
     int rc;
 } global_t;
 
-global_t global = {0};
-
-
-static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
-static char syntax[]="Syntax: riscos-build-online [-h] -i <infile> [-o <outfile>]\n";
-
+global_t global;
 
 
 /**
@@ -427,6 +424,11 @@ void robuild_msg_output(wsclient *c, cJSON *json) {
         protoerror("'output' received when not compiling");
     }
 
+    if (global.build_output_fh)
+    {
+        fwrite(msg, 1, strlen(msg), global.build_output_fh);
+    }
+
     if (!global.really_quiet)
     {
         if (!global.last_message_was_output)
@@ -552,10 +554,14 @@ int onmessage(wsclient *c, wsclient_message *msg) {
 
 int main(int argc, char **argv) {
     int c;
+    static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
+    static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] -i <infile> [-o <outfile>] [-b <buildoutput>]\n";
+
 
     global.server_uri = "ws://jfpatch.riscos.online/ws";
     global.source_file = NULL;
     global.output_prefix = "output";
+    global.build_output_file = NULL;
     global.state = s_connecting;
     global.rc = 99; /* Something that looks odd */
 
@@ -564,7 +570,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqQi:o:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQi:o:b:")) != EOF) {
         switch (c) {
             case 'i': /* input file */
                 global.source_file = optarg;
@@ -583,6 +589,10 @@ int main(int argc, char **argv) {
                 global.quiet = 1;
                 break;
 
+            case 'b':
+                global.build_output_file = optarg;
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
@@ -590,11 +600,28 @@ int main(int argc, char **argv) {
   -i  Specify input file\n\
   -q  Quiet non-output information\n\
   -Q  Quiet all non-failure information\n\
-  -o  Specify output file prefix; will be suffixed with `,xxx` filetype\n", banner, syntax);
+  -o  Specify output file prefix; will be suffixed with `,xxx` filetype (default 'output')\n\
+  -b  Specify build output file\n\
+", banner, syntax);
                 exit(0);
         }
-  }
+    }
 
+    if (global.source_file == NULL)
+    {
+        fprintf(stderr, "Must supply an input file with -i <filename>\n");
+        exit(1);
+    }
+
+    if (global.build_output_file)
+    {
+        global.build_output_fh = fopen(global.build_output_file, "w");
+        if (!global.build_output_fh)
+        {
+            fprintf(stderr, "Cannot open build output file\n");
+            exit(1);
+        }
+    }
 
     /* FIXME: configurable websocket server */
     wsclient *client = libwsclient_new(global.server_uri);
