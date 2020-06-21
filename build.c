@@ -49,6 +49,7 @@ typedef struct global_s {
     } state;
     int output_ends_in_newline;
     int last_message_was_output;
+    int quiet;
     int rc;
 } global_t;
 
@@ -161,7 +162,8 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
         protoerror("'welcome' message did not pass a string");
     }
 
-    printf("System: %s\n", msg);
+    if (!global.quiet)
+        printf("System: %s\n", msg);
 
     if (global.state != s_connecting)
     {
@@ -237,7 +239,8 @@ void robuild_msg_response(wsclient *c, cJSON *json) {
         protoerror("'response' message did not pass a string");
     }
 
-    printf("Server: %s\n", msg);
+    if (!global.quiet)
+        printf("Server: %s\n", msg);
 
     if (global.state == s_source_sent)
     {
@@ -265,7 +268,8 @@ void robuild_msg_message(wsclient *c, cJSON *json) {
         protoerror("'message' message did not pass a string");
     }
 
-    printf("Build: %s\n", msg);
+    if (!global.quiet)
+        printf("Build: %s\n", msg);
 
     if (global.state == s_compiling)
     {
@@ -292,23 +296,26 @@ void robuild_msg_throwback(wsclient *c, cJSON *json) {
     {
         PREPARE_JSON_KEYED;
 
-        printf("Throwback:\n");
-        int reason = GET_JSON_KEYED_INT(tbjson, "reason", -1);
-        char *reason_name = GET_JSON_KEYED_STRING(tbjson, "reason_name");
-        int severity = GET_JSON_KEYED_INT(tbjson, "severity", -1);
-        char *severity_name = GET_JSON_KEYED_STRING(tbjson, "severity_name");
-        char *filename = GET_JSON_KEYED_STRING(tbjson, "filename");
-        int lineno = GET_JSON_KEYED_INT(tbjson, "lineno", -1);
-        char *url = GET_JSON_KEYED_STRING(tbjson, "url");
-        char *message = GET_JSON_KEYED_STRING(tbjson, "message");
+        if (!global.quiet)
+        {
+            printf("Throwback:\n");
+            int reason = GET_JSON_KEYED_INT(tbjson, "reason", -1);
+            char *reason_name = GET_JSON_KEYED_STRING(tbjson, "reason_name");
+            int severity = GET_JSON_KEYED_INT(tbjson, "severity", -1);
+            char *severity_name = GET_JSON_KEYED_STRING(tbjson, "severity_name");
+            char *filename = GET_JSON_KEYED_STRING(tbjson, "filename");
+            int lineno = GET_JSON_KEYED_INT(tbjson, "lineno", -1);
+            char *url = GET_JSON_KEYED_STRING(tbjson, "url");
+            char *message = GET_JSON_KEYED_STRING(tbjson, "message");
 
-        printf("  Reason:       %i (%s)\n", reason, reason_name ? reason_name : "<none>");
-        if (severity != -1)
-            printf("  Severity:     %i (%s)\n", severity, severity_name ? severity_name : "<none>");
-        if (filename)
-            printf("  Filename:     %s : %i\n", filename, lineno);
-        if (message)
-            printf("  Message:      %s\n", message);
+            printf("  Reason:       %i (%s)\n", reason, reason_name ? reason_name : "<none>");
+            if (severity != -1)
+                printf("  Severity:     %i (%s)\n", severity, severity_name ? severity_name : "<none>");
+            if (filename)
+                printf("  Filename:     %s : %i\n", filename, lineno);
+            if (message)
+                printf("  Message:      %s\n", message);
+        }
     }
     else
     {
@@ -335,7 +342,8 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
         const char *base64 = GET_JSON_KEYED_STRING(cbjson, "data");
         int base64size = strlen(base64);
 
-        printf("Result file: filetype=&%03x, %lu bytes\n", filetype, strlen(base64) * 3 / 4);
+        if (!global.quiet)
+            printf("Result file: filetype=&%03x, %lu bytes\n", filetype, strlen(base64) * 3 / 4);
         char output[BUFSIZE_INPUT];
 
         FILE *fh;
@@ -370,7 +378,8 @@ void robuild_msg_rc(wsclient *c, cJSON *json) {
         protoerror("'rc' message return a valid positive integer");
     }
 
-    printf("RC: %i\n", rc);
+    if (!global.quiet)
+        printf("RC: %i\n", rc);
 
     if (global.state == s_compiling)
     {
@@ -388,7 +397,8 @@ void robuild_msg_rc(wsclient *c, cJSON *json) {
  * API message: 'complete' - The server is informing us that the build is now complete
  */
 void robuild_msg_complete(wsclient *c, cJSON *json) {
-    printf("Server: Build complete\n");
+    if (!global.quiet)
+        printf("Server: Build complete\n");
 
     if (global.state == s_compiling)
     {
@@ -418,7 +428,8 @@ void robuild_msg_output(wsclient *c, cJSON *json) {
 
     if (!global.last_message_was_output)
     {
-        printf("Output:\n");
+        if (!global.quiet)
+            printf("Output:\n");
         global.output_ends_in_newline = 1;
     }
 
@@ -428,7 +439,8 @@ void robuild_msg_output(wsclient *c, cJSON *json) {
 
         if (global.output_ends_in_newline)
         {
-            printf("  ");
+            if (!global.quiet)
+                printf("  ");
         }
 
         if (newline == NULL)
@@ -474,8 +486,9 @@ int onmessage(wsclient *c, wsclient_message *msg) {
     if (global.last_message_was_output && strcmp(msgtype, "output") != 0)
     {
         /* Transition from output to non-output lines */
-        if (!global.output_ends_in_newline)
-            printf("\n");
+        if (!global.quiet)
+            if (!global.output_ends_in_newline)
+                printf("\n");
         global.last_message_was_output = 0;
     }
 
@@ -547,7 +560,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hi:o:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqi:o:")) != EOF) {
         switch (c) {
             case 'i': /* input file */
                 global.source_file = optarg;
@@ -557,11 +570,16 @@ int main(int argc, char **argv) {
                 global.output_prefix = optarg;
                 break;
 
+            case 'q':
+                global.quiet = 1;
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
   -h  Display this help message\n\
   -i  Specify input file\n\
+  -q  Quiet non-output information\n\
   -o  Specify output file prefix; will be suffixed with `,xxx` filetype\n", banner, syntax);
                 exit(0);
         }
