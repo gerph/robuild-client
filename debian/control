@@ -1,0 +1,12 @@
+Package: riscos-build-online
+Version: VERSION
+Section: devel
+Priority: optional
+Architecture: amd64
+Maintainer: Charles Ferguson <gerph@gerph.org>
+Description: Build RISC OS binaries using the RISC OS build service
+ A WebSockets client to communicate with the RISC OS build service at
+ build.riscos.online. It may be used to delivery a source file or archive
+ to the build service, output the progress of the build and store any
+ resulting binary on the local system.
+

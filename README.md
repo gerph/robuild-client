@@ -39,6 +39,13 @@ Once prerequisites are installed, you should just be able to run:
 
 to get a build tool called `riscos-build-online`.
 
+Building a deb:
+
+    make deb
+
+to get a distributable deb containing the tool.
+
+
 ## License
 
 This code is licensed under the BSD license.

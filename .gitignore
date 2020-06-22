@@ -1,2 +1,4 @@
 *.o
 riscos-build-online
+build_deb/
+riscos-build-online*.deb
