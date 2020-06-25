@@ -1,4 +1,5 @@
-
+# Build for the riscos-build-online tool, under Linux/MacOS.
+#
 
 LIB_WSCLIENT = libwsclient/.libs/libwsclient.a
 LIB_CJSON = cJSON/libcjson.a

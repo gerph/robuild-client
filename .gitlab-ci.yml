@@ -1,0 +1,41 @@
+# Automated build of the riscos-build-online tool and deb.
+#
+
+# Enable submodules
+variables:
+  GIT_STRATEGY: clone
+  GIT_SUBMODULE_STRATEGY: recursive
+
+
+tool:
+    stage: build-and-test
+    script:
+      - make riscos-build-online
+      - make test
+
+    artifacts:
+        when: always
+        paths:
+            - riscos-build-online
+
+    tags:
+      - linux
+
+
+deb:
+    stage: package
+    script:
+      - make deb
+
+    artifacts:
+        when: always
+        paths:
+            - riscos-build-online_*.deb
+
+    tags:
+      - linux
+
+
+stages:
+    - build-and-test
+    - package
