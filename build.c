@@ -567,7 +567,7 @@ int onmessage(wsclient *c, wsclient_message *msg) {
 int main(int argc, char **argv) {
     int c;
     static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
-    static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] -i <infile> [-o <outfile>] [-b <buildoutput>]\n";
+    static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] -i <infile> [-s <server-uri>] [-o <outfile>] [-b <buildoutput>]\n";
     wsclient *client;
 
     global.server_uri = "ws://jfpatch.riscos.online/ws";
@@ -582,8 +582,12 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqQi:o:b:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQs:i:o:b:")) != EOF) {
         switch (c) {
+            case 's': /* server URI */
+                global.server_uri = optarg;
+                break;
+
             case 'i': /* input file */
                 global.source_file = optarg;
                 break;
@@ -609,12 +613,13 @@ int main(int argc, char **argv) {
                 printf("\
 %s%s\n\
   -h  Display this help message\n\
+  -s  Specify the server URI to connect to (default: %s)\n\
   -i  Specify input file\n\
   -q  Quiet non-output information\n\
   -Q  Quiet all non-failure information\n\
   -o  Specify output file prefix; will be suffixed with `,xxx` filetype (default 'output')\n\
   -b  Specify build output file\n\
-", banner, syntax);
+", banner, syntax, global.server_uri);
                 exit(0);
         }
     }
