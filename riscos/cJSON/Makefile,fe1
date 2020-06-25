@@ -1,0 +1,30 @@
+# Makefile for cJSON
+#
+
+#
+# Program specific options:
+#
+COMPONENT  = cJSON
+OBJS       = \
+             o.cJSON \
+
+EXPORTS    = ${EXP_LIB}.${LIBCOMPONENT}.h.${COMPONENT}
+INCLUDES   = -IcJSON.
+CDEFINES   =
+
+include LibExport
+
+# Exports
+${EXP_LIB}.${LIBCOMPONENT}.h.${COMPONENT}: h.${COMPONENT}
+        ${CP} $?  $@  ${CPFLAGS}
+
+#---------------------------------------------------------------------------
+# Dynamic dependencies:
+o.cJSON:	c.cJSON
+o.cJSON:	h.cJSON
+oz.cJSON:	c.cJSON
+oz.cJSON:	h.cJSON
+o32.cJSON:	c.cJSON
+o32.cJSON:	h.cJSON
+oz32.cJSON:	c.cJSON
+oz32.cJSON:	h.cJSON

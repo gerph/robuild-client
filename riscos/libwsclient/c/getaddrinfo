@@ -1,0 +1,130 @@
+/* Very fake getaddrinfo just for this project */
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <limits.h>
+#include <netdb.h>
+
+#include "sys/types.h"
+#include "sys/socket.h"
+#include "netinet/in.h"
+#include "arpa/inet.h"
+
+#include "getaddrinfo.h"
+
+#define Resolver_GetHostByName 0x46000
+#include "swis.h"
+
+/* Define this to debug this file */
+/* #define DEBUG */
+
+#ifdef DEBUG
+#define dprintf if (1) printf
+#else
+#define dprintf if (0) printf
+#endif
+
+/* Our structure to hold the addresses */
+typedef struct myaddrinfo_s {
+    struct addrinfo addrinfo;
+    struct sockaddr_in addr;
+} myaddrinfo_t;
+
+
+int getaddrinfo(const char *hostname, const char *servname, const struct addrinfo *hints,
+                struct addrinfo **res)
+{
+    myaddrinfo_t *addrinfo;
+    struct addrinfo *servinfo;
+    struct hostent *host;
+    struct servent *serv;
+
+    dprintf("Looking up hostname '%s'\n", hostname);
+#if 0
+    host = gethostbyname(hostname);
+    if (!host)
+    {
+        printf("No host\n");
+        /* Host not found */
+        *res = NULL;
+        return -1; /* FIXME: This is a lie */
+    }
+#else
+    {
+        int hosterr;
+        _kernel_oserror *err = _swix(Resolver_GetHostByName, _IN(1)|_OUTR(0,1),
+                                     hostname,
+                                     &hosterr, &host);
+        if (err)
+        {
+            dprintf("Resolver error: %s\n", err->errmess);
+            *res = NULL;
+            return -1; /* FIXME: This is a lie */
+        }
+        if (hosterr != 0)
+        {
+            dprintf("Resolver error %i\n", hosterr);
+            *res = NULL;
+            return -1; /* FIXME: This is a lie */
+        }
+    }
+#endif
+
+    dprintf("Looking up service '%s'\n", servname);
+    serv = getservbyname(servname, "tcp");
+    if (!serv)
+    {
+        unsigned long val;
+        static struct servent servnum;
+        dprintf("No service\n");
+        val = strtoul(servname, NULL, 10);
+        if (val == ULONG_MAX)
+        {
+            /* Service not found */
+            *res = NULL;
+            return -1; /* FIXME: This is a lie */
+        }
+        servnum.s_port = val;
+        serv = &servnum;
+        dprintf("Using port %i\n", val);
+    }
+
+    addrinfo = malloc(sizeof(*addrinfo));
+    if (addrinfo == NULL)
+    {
+        /* Not enough memory */
+        *res = NULL;
+        return -1; /* FIXME: This is a lie */
+    }
+
+    servinfo = &addrinfo->addrinfo;
+
+    servinfo->ai_family = host->h_addrtype;
+    servinfo->ai_socktype = SOCK_STREAM;
+    servinfo->ai_protocol = PF_UNSPEC;
+    servinfo->ai_addr = (struct sockaddr *)&addrinfo->addr;
+
+    addrinfo->addr.sin_family = host->h_addrtype;
+    addrinfo->addr.sin_port = htons(serv->s_port);
+    /* FIXME: We should generate one address record for each address in the list */
+    /* FIXME: This only works because Resolver_GetHostByName only ever returns IPv4 addresses */
+    dprintf("Address = %08x\n", *(unsigned long *)*host->h_addr_list);
+    addrinfo->addr.sin_addr.s_addr = *(unsigned long *)*host->h_addr_list;
+    servinfo->ai_addrlen = sizeof(struct sockaddr_in);
+    servinfo->ai_next = NULL;
+
+    *res = &addrinfo->addrinfo;
+    return 0;
+}
+
+
+void freeaddrinfo(struct addrinfo *addrinfo)
+{
+    /* addrinfo is always at the front of the myaddrinfo we allocated */
+    while (addrinfo)
+    {
+        struct addrinfo *next = addrinfo->ai_next;
+        free(addrinfo);
+        addrinfo = next;
+    }
+}

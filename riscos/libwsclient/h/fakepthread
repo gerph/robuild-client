@@ -1,0 +1,17 @@
+#ifndef FAKE_PTHREAD_H
+#define FAKE_PTHREAD_H
+/* We know that we don't actually /need/ to be threaded, so we can actually
+ * make all of the pthread operations into nops.
+ */
+
+#define pthread_create(_w, _x, _y, _z) (0)
+#define pthread_join(_w, _x) while (0)
+#define pthread_mutex_lock(_w) while (0)
+#define pthread_mutex_unlock(_w) while (0)
+#define pthread_mutex_init(_w, _x) (0)
+#define pthread_kill(_w, _x) while (0)
+
+typedef void *pthread_t;
+typedef void *pthread_mutex_t;
+
+#endif

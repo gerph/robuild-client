@@ -1,0 +1,13 @@
+| Copy the files to the correct place for RISC OS use
+
+Set Prepare$Dir ^.^
+Set Alias$Prepare ifthere <Prepare$Dir>.%%0/c Then copy <Prepare$Dir>.%%0/c c.%%0 ~CVF|Mifthere <Prepare$Dir>.%%0/h Then copy <Prepare$Dir>.%%0/h h.%%0 ~CVF
+
+cdir c
+cdir h
+Prepare base64
+Prepare base64_encode
+Prepare base64_decode
+Prepare build
+
+Copy <Prepare$Dir>.VersionNum VersionNum ~CVF

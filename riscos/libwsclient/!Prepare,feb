@@ -1,0 +1,16 @@
+| Copy the files to the correct place for RISC OS use
+
+Set Prepare$Dir ^.^.libwsclient
+Set Alias$Prepare ifthere <Prepare$Dir>.%%0/c Then copy <Prepare$Dir>.%%0/c c.%%0 ~CVF|Mifthere <Prepare$Dir>.%%0/h Then copy <Prepare$Dir>.%%0/h h.%%0 ~CVF
+
+cdir c
+cdir h
+Prepare base64
+Prepare sha1
+Prepare wsclient
+Prepare config
+
+| Fix up some sources for RISC OS
+Set Alias$FixUp sed -f replace/sed %%0 > %%0_ro
+FixUp c.wsclient
+FixUp h.wsclient

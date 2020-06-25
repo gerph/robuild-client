@@ -1,0 +1,15 @@
+# Makefile for cJSON_test
+#
+
+COMPONENT  = cJSON_test
+TYPE       = aif
+INCLUDES   = <Lib$Dir>.cJSON.
+LIBS       = <Lib$Dir>.cJSON.o.libcJSON C:o.stubs
+OBJS       = o.test
+
+include LibraryCommand
+
+#---------------------------------------------------------------------------
+# Dynamic dependencies:
+o32.test:	c.test
+o32.test:	h.cJSON

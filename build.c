@@ -21,6 +21,9 @@
  * some structures. It appears to omit the external API, however.
  */
 #define errors libwsclienterrors
+#define libwsclient_flags hidden_libwsclient_flags
+#include <sys/types.h>
+#include <netinet/in.h>
 #include <wsclient.h>
 int libwsclient_send(wsclient *client, char *strdata);
 void libwsclient_onclose(wsclient *client, int (*cb)(wsclient *c));
@@ -47,7 +50,7 @@ typedef struct global_s {
         s_source_sent,
         s_build_sent,
         s_compiling,
-        s_complete,
+        s_complete
     } state;
     int output_ends_in_newline;
     int last_message_was_output;
@@ -154,6 +157,11 @@ void robuild_send_str(wsclient *c, char *action, char *str)
  * API message: 'welcome' - we connected and they greeted.
  */
 void robuild_msg_welcome(wsclient *c, cJSON *json) {
+    char buffer[BUFSIZE_INPUT + 1];
+    int base64size = 0;
+    char *base64;
+    FILE *fh;
+
     char *msg = GET_JSON_STRING(json);
     if (!msg)
     {
@@ -169,10 +177,8 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
     }
 
     /* Now that we've been sent the welcome, we can send the source data */
-    char buffer[BUFSIZE_INPUT + 1];
-    int base64size = 0;
-    char *base64 = malloc(base64size + 1);
-    FILE *fh = fopen(global.source_file, "rb");
+    base64 = malloc(base64size + 1);
+    fh = fopen(global.source_file, "rb");
     if (!fh)
     {
         error("Cannot read source input file");
@@ -181,6 +187,8 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
 
     while (!feof(fh))
     {
+        char *resized;
+        int encoded;
         int read = fread(buffer, 1, BUFSIZE_INPUT, fh);
         if (read < 0)
         {
@@ -189,13 +197,13 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
         if (read == 0)
             break;
 
-        char *resized = realloc(base64, base64size + BUFSIZE_BASE64 + 1);
+        resized = realloc(base64, base64size + BUFSIZE_BASE64 + 1);
         if (resized == NULL)
         {
             error("Not enough memory");
         }
         base64 = resized;
-        int encoded = base64_encode(buffer, read, &base64[base64size], BUFSIZE_BASE64 + 1);
+        encoded = base64_encode(buffer, read, &base64[base64size], BUFSIZE_BASE64 + 1);
         if (encoded == -1)
         {
             error("Base64 encode error");
@@ -296,7 +304,6 @@ void robuild_msg_throwback(wsclient *c, cJSON *json) {
 
         if (!global.quiet)
         {
-            printf("Throwback:\n");
             int reason = GET_JSON_KEYED_INT(tbjson, "reason", -1);
             char *reason_name = GET_JSON_KEYED_STRING(tbjson, "reason_name");
             int severity = GET_JSON_KEYED_INT(tbjson, "severity", -1);
@@ -306,6 +313,7 @@ void robuild_msg_throwback(wsclient *c, cJSON *json) {
             char *url = GET_JSON_KEYED_STRING(tbjson, "url");
             char *message = GET_JSON_KEYED_STRING(tbjson, "message");
 
+            printf("Throwback:\n");
             printf("  Reason:       %i (%s)\n", reason, reason_name ? reason_name : "<none>");
             if (severity != -1)
                 printf("  Severity:     %i (%s)\n", severity, severity_name ? severity_name : "<none>");
@@ -340,12 +348,12 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
         const char *base64 = GET_JSON_KEYED_STRING(cbjson, "data");
         int base64size = strlen(base64);
 
-        if (!global.quiet)
-            printf("Result file: filetype=&%03x, %lu bytes\n", filetype, strlen(base64) * 3 / 4);
         char output[BUFSIZE_INPUT];
-
         FILE *fh;
         char output_filename[1024];
+
+        if (!global.quiet)
+            printf("Result file: filetype=&%03x, %lu bytes\n", filetype, strlen(base64) * 3 / 4);
         sprintf(output_filename, "%s,%03x", global.output_prefix, filetype);
         fh = fopen(output_filename, "wb");
         if (!fh)
@@ -479,15 +487,19 @@ int onmessage(wsclient *c, wsclient_message *msg) {
 
     char *wsmsg = msg->payload;
     cJSON *json = cJSON_Parse(wsmsg);
+    cJSON *json_msgtype;
+    cJSON *json_msgdata;
+    char *msgtype;
+
     if (!cJSON_IsArray(json))
     {
         protoerror("Bad message from server (not an array for server action)");
     }
 
-    cJSON *json_msgtype = json->child;
-    cJSON *json_msgdata = json_msgtype != NULL ? json_msgtype->next : NULL;
+    json_msgtype = json->child;
+    json_msgdata = json_msgtype != NULL ? json_msgtype->next : NULL;
 
-    char *msgtype = GET_JSON_STRING(json_msgtype);
+    msgtype = GET_JSON_STRING(json_msgtype);
 
     if (global.last_message_was_output && strcmp(msgtype, "output") != 0)
     {
@@ -556,7 +568,7 @@ int main(int argc, char **argv) {
     int c;
     static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
     static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] -i <infile> [-o <outfile>] [-b <buildoutput>]\n";
-
+    wsclient *client;
 
     global.server_uri = "ws://jfpatch.riscos.online/ws";
     global.source_file = NULL;
@@ -624,7 +636,7 @@ int main(int argc, char **argv) {
     }
 
     /* FIXME: configurable websocket server */
-    wsclient *client = libwsclient_new(global.server_uri);
+    client = libwsclient_new(global.server_uri);
     if(!client) {
         fprintf(stderr, "Unable to initialize new websocket client\n");
         exit(1);
@@ -637,7 +649,12 @@ int main(int argc, char **argv) {
     libwsclient_onerror(client, &onerror);
     libwsclient_onclose(client, &onclose);
     //starts run thread.
+#ifdef __riscos
+    libwsclient_handshake_thread(client);
+    libwsclient_run_thread(client);
+#else
     libwsclient_run(client);
+#endif
     //blocks until run thread for client is done.
     libwsclient_finish(client);
 

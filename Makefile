@@ -58,3 +58,6 @@ build_deb: riscos-build-online
 	cp debian/copyright build_deb/DEBIAN/copyright
 	mkdir -p build_deb/usr/bin
 	cp riscos-build-online build_deb/usr/bin/riscos-build-online
+
+test: riscos-build-online
+	./riscos-build-online -i testfile,fd1
