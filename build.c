@@ -6,6 +6,10 @@
 
 #include "getopt.h"
 
+#ifdef __riscos
+#include "swis.h"
+#endif
+
 #include "VersionNum"
 
 
@@ -354,7 +358,12 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
 
         if (!global.quiet)
             printf("Result file: filetype=&%03x, %lu bytes\n", filetype, strlen(base64) * 3 / 4);
+
+#ifdef __riscos
+        strcpy(output_filename, global.output_prefix);
+#else
         sprintf(output_filename, "%s,%03x", global.output_prefix, filetype);
+#endif
         fh = fopen(output_filename, "wb");
         if (!fh)
         {
@@ -366,6 +375,11 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
             fwrite(output, 1, got, fh);
         }
         fclose(fh);
+
+#ifdef __riscos
+        /* Set the file type */
+        _swix(OS_File, _INR(0, 2), 18, output_filename, filetype);
+#endif
     }
     else
     {
@@ -617,9 +631,15 @@ int main(int argc, char **argv) {
   -i  Specify input file\n\
   -q  Quiet non-output information\n\
   -Q  Quiet all non-failure information\n\
-  -o  Specify output file prefix; will be suffixed with `,xxx` filetype (default 'output')\n\
+  -o  %s\n\
   -b  Specify build output file\n\
-", banner, syntax, global.server_uri);
+", banner, syntax, global.server_uri,
+#ifdef __riscos
+"Specify output filename (default 'output')"
+#else
+"Specify output file prefix; will be suffixed with `,xxx` filetype (default 'output')"
+#endif
+);
                 exit(0);
         }
     }

@@ -1,24 +1,24 @@
-/* build-riscos-online (0.02) 21:38:12 25/6/2020
+/* build-riscos-online (0.03) 21:27:43 26/6/2020
  *
  * This file is automatically maintained by rocommit, do not edit manually.
  *
  */
-#define Module_MajorVersion_CMHG        0.02
+#define Module_MajorVersion_CMHG        0.03
 #define Module_MinorVersion_CMHG        
-#define Module_Date_CMHG                25 Jun 2020
+#define Module_Date_CMHG                26 Jun 2020
 
-#define Module_MajorVersion             "0.02"
-#define Module_Version                  2
+#define Module_MajorVersion             "0.03"
+#define Module_Version                  3
 #define Module_MinorVersion             ""
-#define Module_Date                     "25 Jun 2020"
+#define Module_Date                     "26 Jun 2020"
 
-#define Module_ApplicationDate2         "25-Jun-20"
-#define Module_ApplicationDate4         "25-Jun-2020"
+#define Module_ApplicationDate2         "26-Jun-20"
+#define Module_ApplicationDate4         "26-Jun-2020"
 
 #define Module_ComponentName            "build-riscos-online"
 #define Module_ComponentBranch          ""
 #define Module_ComponentPath            "build-riscos-online"
 
-#define Module_FullVersion              "0.02"
-#define Module_FullVersionAndDate       "0.02 (25 Jun 2020)"
-#define Module_HelpVersion              "0.02 (25 Jun 2020)"
+#define Module_FullVersion              "0.03"
+#define Module_FullVersionAndDate       "0.03 (26 Jun 2020)"
+#define Module_HelpVersion              "0.03 (26 Jun 2020)"

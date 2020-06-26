@@ -1,6 +1,7 @@
 | Set up and build all the sources
 
 set Build$Top <Obey$Dir>
+set Sys$RCLimit 0
 
 | cJSON
 dir <Build$Top>.cJSON
@@ -18,3 +19,8 @@ amu export
 dir <Build$Top>.client
 /!Prepare
 amu BUILD32=1
+
+
+| DONE!
+echo Built.
+dir <Build$Top>

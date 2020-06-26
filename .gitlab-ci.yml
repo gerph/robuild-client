@@ -7,7 +7,7 @@ variables:
   GIT_SUBMODULE_STRATEGY: recursive
 
 
-tool:
+linux-tool:
     stage: build-and-test
     script:
       - make riscos-build-online
@@ -22,7 +22,7 @@ tool:
       - linux
 
 
-deb:
+linux-deb:
     stage: package
     script:
       - make deb
@@ -34,6 +34,74 @@ deb:
 
     tags:
       - linux
+
+
+riscos-tool:
+    stage: build-and-test
+    script:
+      # FIXME: With a bit of thought I could replace the curl running of the build with
+      #        an invocation of the tool that we just built.
+      - |
+        set -o pipefail
+        mkdir /tmp/robuild
+        # Zip up the source to send to robuild
+        zip -q9r /tmp/source-archive.zip * .robuild.yaml
+        # Send the archive file to JFPatch as a service
+        curl -q -F 'source=@/tmp/source-archive.zip' -o /tmp/robuild/result.json https://json.build.riscos.online/build/json
+        # Extract any system messages and output
+        jq -r '.messages[]' /tmp/robuild/result.json > /tmp/robuild/messages.txt || { echo "Server response:" ; cat /tmp/robuild/result.json ; false ; }
+        jq -r 'reduce .output[] as $i ("";. + $i)' /tmp/robuild/result.json > /tmp/robuild/output.txt
+        # Extract return code
+        rc=$(jq -r .rc /tmp/robuild/result.json | tee /tmp/robuild/rc.json)
+        # Marker files for the state
+        if [ "$rc" != "0" ] ; then touch /tmp/robuild/failed ; else touch /tmp/robuild/ok ; fi
+        # Extract the built binary if we had any
+        if [ "$rc" = "0" ] ; then
+            jq -r .data /tmp/robuild/result.json | base64 --decode - > /tmp/robuild/built
+        fi
+        # Outputs:
+        #   /tmp/robuild/result.json    - JSON output from the service.
+        #   /tmp/robuild/{ok,failed}    - status of the build (whether RC was 0).
+        #   /tmp/robuild/built          - the output result from the build.
+        #   /tmp/robuild/rc             - the value of the return code (decimal string)
+        #   /tmp/robuild/messages.txt   - system messages
+        #   /tmp/robuild/output.txt     - output from the build
+
+      - |
+        echo "System messages:"
+        sed 's/^/  /' < /tmp/robuild/messages.txt
+        echo
+        echo "Build output:"
+        sed 's/^/  /' < /tmp/robuild/output.txt
+        echo
+        if [ ! -f /tmp/robuild/ok ] ; then
+            echo "FAILED! Aborting"
+            exit 1
+        fi
+
+      - |
+        if [[ -f VersionNum ]] ; then
+            version=$(sed '/MajorVersion / ! d ; s/.*MajorVersion *"\(.*\)"/\1/' VersionNum)
+        else
+            version=$(git rev-parse --short HEAD)
+        fi
+        echo This is version: $version
+        mkdir robuild-client-$version
+        if [ -f /tmp/robuild/built ] ; then
+            cp /tmp/robuild/built robuild-client-$version/riscos-build-online,ff8
+        else
+            echo "No archive was built?"
+            exit 1
+        fi
+
+    artifacts:
+        when: always
+        paths:
+            - robuild-client-*/riscos-build-online,ff8
+
+    tags:
+      - linux
+
 
 
 stages:

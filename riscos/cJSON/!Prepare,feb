@@ -1,7 +1,12 @@
 | Copy the files to the correct place for RISC OS use
 
 Set Prepare$Dir ^.^.cJSON
-Set Alias$Prepare ifthere <Prepare$Dir>.%%0/c Then copy <Prepare$Dir>.%%0/c c.%%0 ~CVF|Mifthere <Prepare$Dir>.%%0/h Then copy <Prepare$Dir>.%%0/h h.%%0 ~CVF
+| The build service 'helpfully' translates the c and h files from
+| */c and */h to c.* and h.*. Until that's sorted, we need to do both
+| forms of copy.
+Set Alias$Prepare1 ifthere <Prepare$Dir>.%%0/c Then copy <Prepare$Dir>.%%0/c c.%%0 ~CVF|Mifthere <Prepare$Dir>.%%0/h Then copy <Prepare$Dir>.%%0/h h.%%0 ~CVF
+Set Alias$Prepare2 ifthere <Prepare$Dir>.c.%%0 Then copy <Prepare$Dir>.c.%%0 c.%%0 ~CVF|Mifthere <Prepare$Dir>.h.%%0 Then copy <Prepare$Dir>.h.%%0 h.%%0 ~CVF
+Set Alias$Prepare Prepare1 %%0|MPrepare2 %%0
 
 cdir c
 cdir h
