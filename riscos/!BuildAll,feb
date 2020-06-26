@@ -1,0 +1,20 @@
+| Set up and build all the sources
+
+set Build$Top <Obey$Dir>
+
+| cJSON
+dir <Build$Top>.cJSON
+/!Prepare
+amu export
+
+
+| libWSClient
+dir <Build$Top>.libwsclient
+/!Prepare
+amu export
+
+
+| client
+dir <Build$Top>.client
+/!Prepare
+amu BUILD32=1

@@ -14,3 +14,4 @@ Prepare config
 Set Alias$FixUp sed -f replace/sed %%0 > %%0_ro
 FixUp c.wsclient
 FixUp h.wsclient
+FixUp c.base64
