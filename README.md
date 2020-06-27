@@ -22,6 +22,7 @@ Other options that can be used:
 * `-Q`: Write no output to the terminal except errors.
 * `-b`: Write all the build process's output to a file.
 * `-s`: Specifies the server URI to connect to.
+* `-t`: Specifies the timeout in seconds for the remote execution.
 
 ## Prerequisites
 

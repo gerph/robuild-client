@@ -43,7 +43,7 @@ riscos-build-online: ${OBJS} ${LIB_WSCLIENT} ${LIB_CJSON}
 	gcc -g ${LIBS} -o $@ ${OBJS} ${LIB_WSCLIENT} ${LIB_CJSON}
 
 %.o: %.c
-	gcc -g -O2 ${INCLUDES} -c -o $@ $<
+	gcc -g ${INCLUDES} -c -o $@ $<
 
 build.o: ${LIB_WSCLIENT} VersionNum
 

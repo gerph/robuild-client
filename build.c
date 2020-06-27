@@ -51,16 +51,19 @@ typedef struct global_s {
     FILE *build_output_fh;
     enum {
         s_connecting,
+        s_options_negotiation,
         s_source_sent,
         s_build_sent,
         s_compiling,
         s_complete
     } state;
+    int option_counter;
     int output_ends_in_newline;
     int last_message_was_output;
     int quiet;
     int really_quiet;
     int rc;
+    int timeout;
 } global_t;
 
 global_t global;
@@ -138,14 +141,14 @@ int onerror(wsclient *c, wsclient_error *err) {
 
 
 /**
- * Send an action+string combination.
+ * Send an action+json object combination.
  */
-void robuild_send_str(wsclient *c, char *action, char *str)
+void robuild_send_json(wsclient *c, char *action, cJSON *payload)
 {
     cJSON *json = cJSON_CreateArray();
     char *msg;
     cJSON_AddItemToArray(json, cJSON_CreateString(action));
-    cJSON_AddItemToArray(json, cJSON_CreateString(str));
+    cJSON_AddItemToArray(json, payload);
 
     msg = cJSON_Print(json);
 #ifdef DEBUG
@@ -158,27 +161,23 @@ void robuild_send_str(wsclient *c, char *action, char *str)
 
 
 /**
- * API message: 'welcome' - we connected and they greeted.
+ * Send an action+string combination.
  */
-void robuild_msg_welcome(wsclient *c, cJSON *json) {
+void robuild_send_str(wsclient *c, char *action, char *str)
+{
+    robuild_send_json(c, action, cJSON_CreateString(str));
+}
+
+
+/**
+ * Send the source message.
+ */
+void source_send(wsclient *c)
+{
     char buffer[BUFSIZE_INPUT + 1];
     int base64size = 0;
     char *base64;
     FILE *fh;
-
-    char *msg = GET_JSON_STRING(json);
-    if (!msg)
-    {
-        protoerror("'welcome' message did not pass a string");
-    }
-
-    if (!global.quiet)
-        printf("System: %s\n", msg);
-
-    if (global.state != s_connecting)
-    {
-        protoerror("'welcome' received of sequence");
-    }
 
     /* Now that we've been sent the welcome, we can send the source data */
     base64 = malloc(base64size + 1);
@@ -222,6 +221,120 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
     global.state = s_source_sent;
 }
 
+/************************** Options handling *******************************/
+
+cJSON *option_timeout_build(void)
+{
+    if (global.timeout == -1)
+        return NULL;
+    return cJSON_CreateNumber(global.timeout);
+}
+
+void option_timeout_reply(cJSON *payload, int success)
+{
+    if (!success)
+    {
+        printf("Warning: Timeout not supported by server\n");
+    }
+}
+
+
+typedef struct option_handler_s {
+    char *name;
+    cJSON *(*build)(); /* Return NULL if no value for this option */
+    void (*reply)(cJSON *payload, int success);
+} option_handler_t;
+
+
+option_handler_t option_handlers[] = {
+    {
+        "timeout",
+        option_timeout_build,
+        option_timeout_reply,
+    },
+
+    /* Terminating entry */
+    {
+        NULL,
+    }
+};
+
+
+/**
+ * Send the next options message.
+ */
+void options_next(wsclient *c)
+{
+    while (1)
+    {
+        cJSON *array;
+        cJSON *name_str;
+        cJSON *value;
+        option_handler_t *handler = &option_handlers[global.option_counter];
+        if (handler->name == NULL)
+        {
+            /* We've run out of options to send, so move on to the next stage - sending the source */
+            break;
+        }
+
+        value = handler->build();
+        if (value == NULL)
+        {
+            /* Nothing to do for this handler, move on */
+            global.option_counter++;
+            continue;
+        }
+
+        name_str = cJSON_CreateString(handler->name);
+        array = cJSON_CreateArray();
+        cJSON_AddItemToArray(array, name_str);
+        cJSON_AddItemToArray(array, value);
+        robuild_send_json(c, "option", array);
+        return;
+    }
+
+    /* We're done; so move on to sending the source */
+    source_send(c);
+}
+
+
+/**
+ * Deal with a response to the option request.
+ */
+void options_reply(wsclient *c, cJSON *json, int success)
+{
+    option_handler_t *handler = &option_handlers[global.option_counter];
+
+    handler->reply(json, success);
+
+    global.option_counter++;
+    options_next(c);
+}
+
+
+/**
+ * API message: 'welcome' - we connected and they greeted.
+ */
+void robuild_msg_welcome(wsclient *c, cJSON *json) {
+    char *msg = GET_JSON_STRING(json);
+    if (!msg)
+    {
+        protoerror("'welcome' message did not pass a string");
+    }
+
+    if (!global.quiet)
+        printf("System: %s\n", msg);
+
+    if (global.state != s_connecting)
+    {
+        protoerror("'welcome' received out of sequence");
+    }
+
+    /* Begin the option negotiation */
+    global.state = s_options_negotiation;
+    options_next(c);
+}
+
 
 /**
  * API message: 'error' - The server reported an error
@@ -231,6 +344,13 @@ void robuild_msg_error(wsclient *c, cJSON *json) {
     if (!msg)
     {
         protoerror("'error' message did not pass a string");
+    }
+
+    if (global.state == s_options_negotiation)
+    {
+        /* Options negotiation may handle errors */
+        options_reply(c, json, 0);
+        return;
     }
 
     printf("Error from server: %s\n", msg);
@@ -260,6 +380,10 @@ void robuild_msg_response(wsclient *c, cJSON *json) {
     else if (global.state == s_build_sent)
     {
         global.state = s_compiling;
+    }
+    else if (global.state == s_options_negotiation)
+    {
+        options_reply(c, json, 1);
     }
     else
     {
@@ -588,6 +712,7 @@ int main(int argc, char **argv) {
     global.source_file = NULL;
     global.output_prefix = "output";
     global.build_output_file = NULL;
+    global.timeout = -1;
     global.state = s_connecting;
     global.rc = 99; /* Something that looks odd */
 
@@ -596,7 +721,7 @@ int main(int argc, char **argv) {
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqQs:i:o:b:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQs:i:o:b:t:")) != EOF) {
         switch (c) {
             case 's': /* server URI */
                 global.server_uri = optarg;
@@ -623,6 +748,10 @@ int main(int argc, char **argv) {
                 global.build_output_file = optarg;
                 break;
 
+            case 't':
+                global.timeout = atoi(optarg);
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
@@ -633,6 +762,7 @@ int main(int argc, char **argv) {
   -Q  Quiet all non-failure information\n\
   -o  %s\n\
   -b  Specify build output file\n\
+  -t  Specify the timeout to use (default is the service default)\n\
 ", banner, syntax, global.server_uri,
 #ifdef __riscos
 "Specify output filename (default 'output')"
