@@ -127,7 +127,12 @@ int onerror(wsclient *c, wsclient_error *err) {
         (((_json) && cJSON_IsObject((_json))) \
             ? (_json) : NULL)
 
-/* Get a string from a JSON map (requires a 'cJSON *tmp', created by PREPARE_JSON_KEYED) */
+/* Get an array from a JSON object */
+#define GET_JSON_ARRAY(_json) \
+        (((_json) && cJSON_IsArray((_json))) \
+            ? (_json) : NULL)
+
+/* Get a string from a JSON map (requires a 'cJSON *_tmpjson', created by PREPARE_JSON_KEYED) */
 #define PREPARE_JSON_KEYED cJSON *_tmpjson = NULL
 #define GET_JSON_KEYED_STRING(_json, _key) \
         ((_json) && (_tmpjson=cJSON_GetObjectItemCaseSensitive((_json), (_key))) \
@@ -136,6 +141,21 @@ int onerror(wsclient *c, wsclient_error *err) {
 /* Same for an int */
 #define GET_JSON_KEYED_INT(_json, _key, _badvalue) \
         ((_json) && (_tmpjson=cJSON_GetObjectItemCaseSensitive((_json), (_key))) \
+            ? GET_JSON_INT(_tmpjson, (_badvalue)) : (_badvalue))
+
+/* Get an indexed item from an array */
+#define GET_JSON_INDEXED(_json, _index) \
+        ((_json) ? cJSON_GetArrayItem((_json), (_index)) : NULL)
+
+/* Get an indexed item from a JSON array (requires a 'cJSON *_tmpjson', created by PREPARE_JSON_KEYED) */
+#define PREPARE_JSON_INDEXED cJSON *_tmpjson = NULL
+#define GET_JSON_INDEXED_STRING(_json, _index) \
+        ((_json) && (_tmpjson=cJSON_GetArrayItem((_json), (_index))) \
+            ? GET_JSON_STRING(_tmpjson) : NULL)
+
+/* Same for an int */
+#define GET_JSON_INDEXED_INT(_json, _index, _badvalue) \
+        ((_json) && (_tmpjson=cJSON_GetArrayIndex((_json), (_index))) \
             ? GET_JSON_INT(_tmpjson, (_badvalue)) : (_badvalue))
 
 
@@ -363,10 +383,27 @@ void robuild_msg_error(wsclient *c, cJSON *json) {
  * API message: 'response' - The server is responding to something that we did.
  */
 void robuild_msg_response(wsclient *c, cJSON *json) {
+    PREPARE_JSON_INDEXED;
     char *msg = GET_JSON_STRING(json);
+    cJSON *json_data = NULL;
     if (!msg)
     {
-        protoerror("'response' message did not pass a string");
+        /* They didn't give us a string, so check if it's an array */
+        cJSON *array = GET_JSON_ARRAY(json);
+        if (array == NULL)
+        {
+            protoerror("'response' message did not pass a string or an array of (string, data)");
+        }
+        msg = GET_JSON_INDEXED_STRING(array, 0);
+        if (msg == NULL)
+        {
+            protoerror("'response' message array item 0 was not a string");
+        }
+        json_data = GET_JSON_INDEXED(array, 1);
+        if (json_data == NULL)
+        {
+            protoerror("'response' message array item 1 was not present");
+        }
     }
 
     if (!global.quiet)
