@@ -21,8 +21,9 @@ Other options that can be used:
 * `-q`: Only write the output from the build process to the terminal.
 * `-Q`: Write no output to the terminal except errors.
 * `-b`: Write all the build process's output to a file.
-* `-s`: Specifies the server URI to connect to.
+* `-s`: Specifies the server URI to connect together.
 * `-t`: Specifies the timeout in seconds for the remote execution.
+* `-a`: Enables or disables the use of ANSI text formatting (default 'on').
 
 ## Prerequisites
 

@@ -63,7 +63,10 @@ typedef struct global_s {
     int quiet;
     int really_quiet;
     int rc;
+
+    /* Options */
     int timeout;
+    int ansitext;
 } global_t;
 
 global_t global;
@@ -254,7 +257,25 @@ void option_timeout_reply(cJSON *payload, int success)
 {
     if (!success)
     {
-        printf("Warning: Timeout not supported by server\n");
+        char *msg = GET_JSON_STRING(payload);
+        printf("Warning: Timeout configuration failed: %s\n", msg ? msg : "Server error");
+    }
+}
+
+
+cJSON *option_ansitext_build(void)
+{
+    if (global.ansitext == -1)
+        return NULL;
+    return cJSON_CreateBool(global.ansitext);
+}
+
+void option_ansitext_reply(cJSON *payload, int success)
+{
+    if (!success)
+    {
+        char *msg = GET_JSON_STRING(payload);
+        printf("Warning: ANSI text configuration failed: %s\n", msg ? msg : "Server error");
     }
 }
 
@@ -271,6 +292,12 @@ option_handler_t option_handlers[] = {
         "timeout",
         option_timeout_build,
         option_timeout_reply,
+    },
+
+    {
+        "ansitext",
+        option_ansitext_build,
+        option_ansitext_reply,
     },
 
     /* Terminating entry */
@@ -406,8 +433,12 @@ void robuild_msg_response(wsclient *c, cJSON *json) {
         }
     }
 
-    if (!global.quiet)
-        printf("Server: %s\n", msg);
+    if (global.state != s_options_negotiation)
+    {
+        /* Don't print the server messages during the options negotiation; leave it to the option handler. */
+        if (!global.quiet)
+            printf("Server: %s\n", msg);
+    }
 
     if (global.state == s_source_sent)
     {
@@ -739,6 +770,26 @@ int onmessage(wsclient *c, wsclient_message *msg) {
     return 0;
 }
 
+int parse_bool(char *arg, char *context)
+{
+    char msg[256];
+    if (strcmp(arg, "on") == 0)
+    {
+        return 1;
+    }
+    else if (strcmp(arg, "off") == 0)
+    {
+        return 0;
+    }
+
+    /* Unrecognised boolean name */
+    sprintf(msg, "Expected a boolean ('on' or 'off') %s", context);
+    error(msg);
+
+    return 0;
+}
+
+
 int main(int argc, char **argv) {
     int c;
     static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
@@ -752,13 +803,14 @@ int main(int argc, char **argv) {
     global.timeout = -1;
     global.state = s_connecting;
     global.rc = 99; /* Something that looks odd */
+    global.ansitext = 1; /* server default */
 
     if (argc < 2) {
         printf("%s%s", banner, syntax);
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqQs:i:o:b:t:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQs:i:o:b:t:a:")) != EOF) {
         switch (c) {
             case 's': /* server URI */
                 global.server_uri = optarg;
@@ -789,17 +841,22 @@ int main(int argc, char **argv) {
                 global.timeout = atoi(optarg);
                 break;
 
+            case 'a':
+                global.ansitext = parse_bool(optarg, "parsing ansitext switch (-a)");
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
-  -h  Display this help message\n\
-  -s  Specify the server URI to connect to (default: %s)\n\
-  -i  Specify input file\n\
-  -q  Quiet non-output information\n\
-  -Q  Quiet all non-failure information\n\
-  -o  %s\n\
-  -b  Specify build output file\n\
-  -t  Specify the timeout to use (default is the service default)\n\
+  -h            Display this help message\n\
+  -s <uri>      Specify the server URI to connect to (default: %s)\n\
+  -i <file>     Specify input file\n\
+  -q            Quiet non-output information\n\
+  -Q            Quiet all non-failure information\n\
+  -o <file>     %s\n\
+  -b <file>     Specify build output file\n\
+  -t <secs>     Specify the timeout to use (default is the service default)\n\
+  -a on|off     Enable or disable ANSI text (default 'on')\n\
 ", banner, syntax, global.server_uri,
 #ifdef __riscos
 "Specify output filename (default 'output')"
