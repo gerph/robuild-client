@@ -892,6 +892,9 @@ int main(int argc, char **argv) {
     }
     /* FIXME: atexit to close sockets */
 
+    /* Use line buffering as this is the most sensible output for most CI */
+    setvbuf(stdout, NULL, _IOLBF, BUFSIZ);
+
     //set callback functions for this client
     libwsclient_onopen(client, &onopen);
     libwsclient_onmessage(client, &onmessage);
