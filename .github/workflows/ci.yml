@@ -88,53 +88,9 @@ jobs:
       # We use the tool we've just built to create the RISC OS version.
       - name: Build through build.riscos.online
         run: |
-          set -o pipefail
           zip -q9r /tmp/source-archive.zip * .robuild.yaml
           chmod +x riscos-build-online-linux-tool/riscos-build-online
           riscos-build-online-linux-tool/riscos-build-online -i /tmp/source-archive.zip -t 600 -o /tmp/riscos-build-online
-
-      # Step intended to be reused in CI pipelines.
-#      - name: Build through build.riscos.online
-#        run: |
-#          set -o pipefail
-#          mkdir /tmp/robuild
-#          # Zip up the source to send to robuild
-#          zip -q9r /tmp/source-archive.zip * .robuild.yaml
-#          # Send the archive file to build service
-#          curl -q -F 'source=@/tmp/source-archive.zip' -o /tmp/robuild/result.json https://json.build.riscos.online/build/json
-#          # Extract any system messages and output
-#          jq -r '.messages[]' /tmp/robuild/result.json > /tmp/robuild/messages.txt || \
-#            { echo "Server response:" ; cat /tmp/robuild/result.json ; false ; }
-#          jq -r 'reduce .output[] as $i ("";. + $i)' /tmp/robuild/result.json > /tmp/robuild/output.txt
-#          # Extract return code
-#          rc=$(jq -r .rc /tmp/robuild/result.json | tee /tmp/robuild/rc.json)
-#          # Marker files for the state
-#          if [ "$rc" != "0" ] ; then touch /tmp/robuild/failed ; else touch /tmp/robuild/ok ; fi
-#          # Extract the built binary if we had any
-#          if [ "$rc" = "0" ] ; then
-#              jq -r .data /tmp/robuild/result.json | base64 --decode - > /tmp/robuild/built
-#          fi
-#      # Outputs:
-#      #   /tmp/robuild/result.json    - JSON output from the service.
-#      #   /tmp/robuild/{ok,failed}    - status of the build (whether RC was 0).
-#      #   /tmp/robuild/built          - the output result from the build.
-#      #   /tmp/robuild/rc             - the value of the return code (decimal string)
-#      #   /tmp/robuild/messages.txt   - system messages
-#      #   /tmp/robuild/output.txt     - output from the build
-#
-#      # Another drop in, which uses that information to show the results
-#      - name: Did it work?
-#        run: |
-#          echo "System messages:"
-#          sed 's/^/  /' < /tmp/robuild/messages.txt
-#          echo
-#          echo "Build output:"
-#          sed 's/^/  /' < /tmp/robuild/output.txt
-#          echo
-#          if [ ! -f /tmp/robuild/ok ] ; then
-#              echo "FAILED! Aborting"
-#              exit 1
-#          fi
 
       - name: Give the output a versioned name
         id: version
