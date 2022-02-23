@@ -587,7 +587,7 @@ void robuild_msg_rc(wsclient *c, cJSON *json) {
     int rc = GET_JSON_INT(json, -1);
     if (rc < 0)
     {
-        protoerror("'rc' message return a valid positive integer");
+        protoerror("'rc' message must return a valid positive integer");
     }
 
     if (!global.quiet)
