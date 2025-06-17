@@ -24,6 +24,7 @@ Other options that can be used:
 * `-s`: Specifies the server URI to connect together.
 * `-t`: Specifies the timeout in seconds for the remote execution.
 * `-a`: Enables or disables the use of ANSI text formatting (default 'on').
+* `-A`: Selects the architecture to run with ('`aarch32`' or '`aarch64`').
 
 ## Prerequisites
 
@@ -32,7 +33,7 @@ the resulting binary. To ensure that they are present, use:
 
     git submodule update --init
 
-The libwsclient needs libtoolize to be present to run the autogen process. On MacOS this
+The `libwsclient` source needs `libtoolize` to be present to run the autogen process. On MacOS this
 was installable with `brew install libtool` but not located where the scripts could find
 it. This could be fixed with:
 

@@ -67,6 +67,7 @@ typedef struct global_s {
     /* Options */
     int timeout;
     int ansitext;
+    char *arch;
 } global_t;
 
 global_t global;
@@ -75,9 +76,15 @@ global_t global;
 /**
  * Protocol error.
  */
-void protoerror(char *msg)
+void protoerror(cJSON *json, char *msg)
 {
+    char *out;
     fprintf(stderr, "Protocol error: %s\n", msg);
+
+    fprintf(stderr, "Protocol message:\n");
+    out = cJSON_Print(json);
+    fprintf(stderr, "%s\n", out);
+    free(out);
     exit(1);
 }
 
@@ -270,6 +277,7 @@ cJSON *option_ansitext_build(void)
     return cJSON_CreateBool(global.ansitext);
 }
 
+
 void option_ansitext_reply(cJSON *payload, int success)
 {
     if (!success)
@@ -279,6 +287,23 @@ void option_ansitext_reply(cJSON *payload, int success)
     }
 }
 
+
+cJSON *option_arch_build(void)
+{
+    if (global.arch == NULL)
+        return NULL;
+    return cJSON_CreateString(global.arch);
+}
+
+
+void option_arch_reply(cJSON *payload, int success)
+{
+    if (!success)
+    {
+        char *msg = GET_JSON_STRING(payload);
+        printf("Warning: Architecture configuration failed: %s\n", msg ? msg : "Server error");
+    }
+}
 
 typedef struct option_handler_s {
     char *name;
@@ -298,6 +323,12 @@ option_handler_t option_handlers[] = {
         "ansitext",
         option_ansitext_build,
         option_ansitext_reply,
+    },
+
+    {
+        "arch",
+        option_arch_build,
+        option_arch_reply,
     },
 
     /* Terminating entry */
@@ -366,7 +397,7 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
     char *msg = GET_JSON_STRING(json);
     if (!msg)
     {
-        protoerror("'welcome' message did not pass a string");
+        protoerror(json, "'welcome' message did not pass a string");
     }
 
     if (!global.quiet)
@@ -374,7 +405,7 @@ void robuild_msg_welcome(wsclient *c, cJSON *json) {
 
     if (global.state != s_connecting)
     {
-        protoerror("'welcome' received out of sequence");
+        protoerror(json, "'welcome' received out of sequence");
     }
 
     /* Begin the option negotiation */
@@ -390,7 +421,7 @@ void robuild_msg_error(wsclient *c, cJSON *json) {
     char *msg = GET_JSON_STRING(json);
     if (!msg)
     {
-        protoerror("'error' message did not pass a string");
+        protoerror(json, "'error' message did not pass a string");
     }
 
     if (global.state == s_options_negotiation)
@@ -419,17 +450,17 @@ void robuild_msg_response(wsclient *c, cJSON *json) {
         cJSON *array = GET_JSON_ARRAY(json);
         if (array == NULL)
         {
-            protoerror("'response' message did not pass a string or an array of (string, data)");
+            protoerror(json, "'response' message did not pass a string or an array of (string, data)");
         }
         msg = GET_JSON_INDEXED_STRING(array, 0);
         if (msg == NULL)
         {
-            protoerror("'response' message array item 0 was not a string");
+            protoerror(json, "'response' message array item 0 was not a string");
         }
         json_data = GET_JSON_INDEXED(array, 1);
         if (json_data == NULL)
         {
-            protoerror("'response' message array item 1 was not present");
+            protoerror(json, "'response' message array item 1 was not present");
         }
     }
 
@@ -455,7 +486,7 @@ void robuild_msg_response(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'response' received for unknown message");
+        protoerror(json, "'response' received for unknown message");
     }
 }
 
@@ -467,7 +498,7 @@ void robuild_msg_message(wsclient *c, cJSON *json) {
     char *msg = GET_JSON_STRING(json);
     if (!msg)
     {
-        protoerror("'message' message did not pass a string");
+        protoerror(json, "'message' message did not pass a string");
     }
 
     if (!global.quiet)
@@ -479,7 +510,7 @@ void robuild_msg_message(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'message' received for unknown state");
+        protoerror(json, "'message' received for unknown state");
     }
 }
 
@@ -491,7 +522,7 @@ void robuild_msg_throwback(wsclient *c, cJSON *json) {
     cJSON *tbjson = GET_JSON_MAP(json);
     if (!tbjson)
     {
-        protoerror("'throwback' message did not pass an object");
+        protoerror(json, "'throwback' message did not pass an object");
     }
 
     if (global.state == s_compiling)
@@ -521,7 +552,7 @@ void robuild_msg_throwback(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'throwback' received for unknown state");
+        protoerror(json, "'throwback' received for unknown state");
     }
 }
 
@@ -533,7 +564,7 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
     cJSON *cbjson = GET_JSON_MAP(json);
     if (!cbjson)
     {
-        protoerror("'clipboard' message did not pass an object");
+        protoerror(json, "'clipboard' message did not pass an object");
     }
 
     if (global.state == s_compiling)
@@ -575,7 +606,7 @@ void robuild_msg_clipboard(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'throwback' received for unknown state");
+        protoerror(json, "'throwback' received for unknown state");
     }
 }
 
@@ -587,7 +618,7 @@ void robuild_msg_rc(wsclient *c, cJSON *json) {
     int rc = GET_JSON_INT(json, -1);
     if (rc < 0)
     {
-        protoerror("'rc' message must return a valid positive integer");
+        protoerror(json, "'rc' message must return a valid positive integer");
     }
 
     if (!global.quiet)
@@ -600,7 +631,7 @@ void robuild_msg_rc(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'rc' received for unknown state");
+        protoerror(json, "'rc' received for unknown state");
     }
 }
 
@@ -618,7 +649,7 @@ void robuild_msg_complete(wsclient *c, cJSON *json) {
     }
     else
     {
-        protoerror("'rc' received for unknown state");
+        protoerror(json, "'rc' received for unknown state");
     }
 }
 
@@ -630,12 +661,12 @@ void robuild_msg_output(wsclient *c, cJSON *json) {
     char *msg = GET_JSON_STRING(json);
     if (!msg)
     {
-        protoerror("'output' message did not pass a string");
+        protoerror(json, "'output' message did not pass a string");
     }
 
     if (global.state != s_compiling)
     {
-        protoerror("'output' received when not compiling");
+        protoerror(json, "'output' received when not compiling");
     }
 
     if (global.build_output_fh)
@@ -699,7 +730,7 @@ int onmessage(wsclient *c, wsclient_message *msg) {
 
     if (!cJSON_IsArray(json))
     {
-        protoerror("Bad message from server (not an array for server action)");
+        protoerror(json, "Bad message from server (not an array for server action)");
     }
 
     json_msgtype = json->child;
@@ -756,7 +787,7 @@ int onmessage(wsclient *c, wsclient_message *msg) {
     {
         char msg[256];
         sprintf(msg, "Unrecognised server action '%s'", msgtype);
-        protoerror(msg);
+        protoerror(json, msg);
     }
 
     /* We're finished with the message, so free it */
@@ -793,7 +824,7 @@ int parse_bool(char *arg, char *context)
 int main(int argc, char **argv) {
     int c;
     static char banner[]="RISC OS Build client for build.riscos.online v" Module_FullVersionAndDate "\n";
-    static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] -i <infile> [-s <server-uri>] [-o <outfile>] [-b <buildoutput>]\n";
+    static char syntax[]="Syntax: riscos-build-online [-h] [-q|-Q] [-a] [-A <arch>] -i <infile> [-s <server-uri>] [-o <outfile>] [-b <buildoutput>]\n";
     wsclient *client;
 
     global.server_uri = "ws://jfpatch.riscos.online/ws";
@@ -802,15 +833,16 @@ int main(int argc, char **argv) {
     global.build_output_file = NULL;
     global.timeout = -1;
     global.state = s_connecting;
-    global.rc = 99; /* Something that looks odd */
+    global.rc = -1; /* Something that looks odd */
     global.ansitext = 1; /* server default */
+    global.arch = NULL; /* Default */
 
     if (argc < 2) {
         printf("%s%s", banner, syntax);
         exit(0);
     }
 
-    while ((c = getopt(argc, argv, "hqQs:i:o:b:t:a:")) != EOF) {
+    while ((c = getopt(argc, argv, "hqQs:i:o:b:t:a:A:")) != EOF) {
         switch (c) {
             case 's': /* server URI */
                 global.server_uri = optarg;
@@ -845,6 +877,10 @@ int main(int argc, char **argv) {
                 global.ansitext = parse_bool(optarg, "parsing ansitext switch (-a)");
                 break;
 
+            case 'A':
+                global.arch = optarg;
+                break;
+
             case 'h':
                 printf("\
 %s%s\n\
@@ -856,7 +892,8 @@ int main(int argc, char **argv) {
   -o <file>     %s\n\
   -b <file>     Specify build output file\n\
   -t <secs>     Specify the timeout to use (default is the service default)\n\
-  -a on|off     Enable or disable ANSI text (default 'on')\n\
+  -a on|off     Enable or disable ANSI text: 'off', 'on' (default)\n\
+  -A <arch>     Architecture to use: 'aarch32' (default), 'aarch64'\n\
 ", banner, syntax, global.server_uri,
 #ifdef __riscos
 "Specify output filename (default 'output')"
