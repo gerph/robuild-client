@@ -30,7 +30,7 @@ jobs:
 
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -49,16 +49,16 @@ jobs:
           shopt -s failglob
           set +o noglob
           deb=$(ls riscos-build-online_*.deb)
-          echo "::set-output name=leafname_tool::riscos-build-online"
-          echo "::set-output name=leafname_deb::$deb"
+          echo "leafname_tool=$leafname" >> $GITHUB_OUTPUT
+          echo "leafname_deb=$deb" >> $GITHUB_OUTPUT
           echo "deb name is '$deb'"
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: riscos-build-online-linux-tool
           path: riscos-build-online
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: riscos-build-online-linux-deb
           path: ${{ steps.version.outputs.leafname_deb }}
@@ -76,14 +76,15 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Download built Linux binary
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-linux-tool
+          path: riscos-build-online-linux-tool
 
       # We use the tool we've just built to create the RISC OS version.
       - name: Build through build.riscos.online
@@ -111,11 +112,11 @@ jobs:
               echo "No archive was built?"
               exit 1
           fi
-          echo "::set-output name=version::$version"
-          echo "::set-output name=leafname::$leafname"
-          echo "::set-output name=filename::$filename"
+          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "leafname=$leafname" >> $GITHUB_OUTPUT
+          echo "filename=$filename" >> $GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: riscos-build-online-riscos-tool
           path: ${{ steps.version.outputs.filename }}
@@ -133,59 +134,36 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download built RISC OS binary
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-riscos-tool
+          path: riscos-build-online-riscos-tool
 
       - name: Download built Linux binary
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-linux-tool
+          path: riscos-build-online-linux-tool
 
       - name: Download built Linux deb
-        uses: actions/download-artifact@v1
+        uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-linux-deb
+          path: riscos-build-online-linux-deb
+
+      - name: Archive each directory
+        run: |
+          for dir in riscos-build-online-riscos-tool \
+                     riscos-build-online-linux-tool \
+                     riscos-build-online-linux-deb ; do
+            zip -9r "$dir".zip "$dir"
+          done
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ needs.build-riscos.outputs.version }}
-          draft: true
           prerelease: false
-
-      - name: Upload Release Asset (RISC OS)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`.
-          # See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps 
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: riscos-build-online-riscos-tool/${{ needs.build-riscos.outputs.leafname }}
-          asset_name: ${{ needs.build-riscos.outputs.leafname }}
-          asset_content_type: application/riscos; name="${{ needs.build-riscos.outputs.leafname }}"
-
-      - name: Upload Release Asset (Linux tool)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: riscos-build-online-linux-tool/${{ needs.build-linux.outputs.leafname_tool }}
-          asset_name: ${{ needs.build-linux.outputs.leafname_tool }}
-          asset_content_type: application/octet-stream
-
-      - name: Upload Release Asset (Linux deb)
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: riscos-build-online-linux-deb/${{ needs.build-linux.outputs.leafname_deb }}
-          asset_name: ${{ needs.build-linux.outputs.leafname_deb }}
-          asset_content_type: application/vnd.debian.binary-package
+          draft: true
+          artifacts: "riscos-build-online-riscos-tool.zip,riscos-build-online-linux-tool.zip,riscos-build-online-linux-deb.zip"
+          artifactContentType: application/zip
