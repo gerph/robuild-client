@@ -49,7 +49,7 @@ jobs:
           shopt -s failglob
           set +o noglob
           deb=$(ls riscos-build-online_*.deb)
-          echo "leafname_tool=$leafname" >> $GITHUB_OUTPUT
+          echo "leafname_tool=riscos-build-online" >> $GITHUB_OUTPUT
           echo "leafname_deb=$deb" >> $GITHUB_OUTPUT
           echo "deb name is '$deb'"
 
@@ -143,21 +143,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-linux-tool
-          path: riscos-build-online-linux-tool
 
       - name: Download built Linux deb
         uses: actions/download-artifact@v4
         with:
           name: riscos-build-online-linux-deb
-          path: riscos-build-online-linux-deb
 
-      - name: Archive each directory
+      - name: Archive the RISC OS file directory
         run: |
-          for dir in riscos-build-online-riscos-tool \
-                     riscos-build-online-linux-tool \
-                     riscos-build-online-linux-deb ; do
-            zip -9r "$dir".zip "$dir"
-          done
+          zip -9r riscos-build-online-riscos-tool.zip riscos-build-online-riscos-tool
 
       - name: Create Release
         id: create_release
@@ -165,5 +159,4 @@ jobs:
         with:
           prerelease: false
           draft: true
-          artifacts: "riscos-build-online-riscos-tool.zip,riscos-build-online-linux-tool.zip,riscos-build-online-linux-deb.zip"
-          artifactContentType: application/zip
+          artifacts: "riscos-build-online-riscos-tool.zip,${{ needs.build-linux.outputs.leafname_deb }},${{ needs.build-linux.outputs.leafname_tool }}"
