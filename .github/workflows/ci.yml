@@ -35,13 +35,21 @@ jobs:
           submodules: recursive
 
       - name: Build the linux binary and the deb
-        run: make riscos-build-online
+        run: |
+          # Regular run would use:
+          #   make riscos-build-online
+          # However, if we do that, we get a binary that uses
+          # GLIBC which is too new to run on Ubuntu 18.04. So
+          # we can build on an earlier system:
+          docker run --rm --init -v $PWD:/source -w /source cuihairu/ubuntu:18.04-gcc bash -c 'apt-get update && apt-get install -y libssl-dev && make riscos-build-online'
 
       - name: Run a test against the live build server
         run: make test
 
       - name: Build the deb
-        run: make deb
+        run: |
+          CHANGENUM=$(git rev-list --count HEAD)
+          docker run --rm --init -v $PWD:/source -w /source cuihairu/ubuntu:18.04-gcc bash -c "apt-get update && apt-get install -y libssl-dev && make deb CHANGENUM=${CHANGENUM}"
 
       - name: Work out the names of the files
         id: version
