@@ -7,7 +7,7 @@ LIBS = -pthread
 INCLUDES = -Ilibwsclient -IcJSON
 
 VERSIONNUM = $(shell sed '/MajorVersion / ! d ; s/.*MajorVersion *"\(.*\)"/\1/ ; s/\.0/./' VersionNum)
-CHANGENUM = $(shell git rev-list --count HEAD)
+CHANGENUM ?= $(shell git rev-list --count HEAD)
 VERSION = ${VERSIONNUM}.${CHANGENUM}-1
 
 all: riscos-build-online
