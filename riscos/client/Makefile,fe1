@@ -3,10 +3,10 @@
 
 COMPONENT  = riscos-build-online
 TYPE       = aif
-INCLUDES   = <Lib$Dir>.cJSON.,<Lib$Dir>.wsclient.,<Lib$Dir>.GetOpt.,TCPIPLibs:
-LIBS       = <Lib$Dir>.cJSON.o.libcJSON \
-			 <Lib$Dir>.wsclient.o.libwsclient \
-			 <Lib$Dir>.GetOpt.o.libGetOpt \
+INCLUDES   = C:cJSON.,C:wsclient.,C:GetOpt.,TCPIPLibs:
+LIBS       = C:cJSON.o.libcJSON \
+			 C:wsclient.o.libwsclient \
+			 C:GetOpt.o.libGetOpt \
 			 TCPIPLibs:o.socklib \
 			 TCPIPLibs:o.inetlib \
 			 TCPIPLibs:o.unixlib \
@@ -19,11 +19,11 @@ include LibraryCommand
 
 #---------------------------------------------------------------------------
 # Dynamic dependencies:
-o.build:	<Lib$Dir>.cJSON.h.cJSON
-o.build:	<Lib$Dir>.GetOpt.h.getopt
-o.build:	<Lib$Dir>.wsclient.h.config
-o.build:	<Lib$Dir>.wsclient.h.fakepthread
-o.build:	<Lib$Dir>.wsclient.h.wsclient
+o.build:	C:cJSON.h.cJSON
+o.build:	C:GetOpt.h.getopt
+o.build:	C:wsclient.h.config
+o.build:	C:wsclient.h.fakepthread
+o.build:	C:wsclient.h.wsclient
 o.build:	c.build
 o.build:	h.base64
 o.build:	TCPIPLibs:machine.h.ansi
@@ -41,11 +41,11 @@ o32.base64_decode:	c.base64_decode
 o32.base64_decode:	h.base64
 o32.base64_encode:	c.base64_encode
 o32.base64_encode:	h.base64
-o32.build:	<Lib$Dir>.cJSON.h.cJSON
-o32.build:	<Lib$Dir>.GetOpt.h.getopt
-o32.build:	<Lib$Dir>.wsclient.h.config
-o32.build:	<Lib$Dir>.wsclient.h.fakepthread
-o32.build:	<Lib$Dir>.wsclient.h.wsclient
+o32.build:	C:cJSON.h.cJSON
+o32.build:	C:GetOpt.h.getopt
+o32.build:	C:wsclient.h.config
+o32.build:	C:wsclient.h.fakepthread
+o32.build:	C:wsclient.h.wsclient
 o32.build:	c.build
 o32.build:	h.base64
 o32.build:	TCPIPLibs:machine.h.ansi
