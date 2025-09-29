@@ -1,6 +1,6 @@
 [submodule "libwsclient"]
 	path = libwsclient
-	url = https://github.com/payden/libwsclient.git
+	url = https://github.com/gerph/libwsclient-republish.git
 [submodule "cJSON"]
 	path = cJSON
 	url = https://github.com/DaveGamble/cJSON.git
