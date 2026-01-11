@@ -61,12 +61,12 @@ jobs:
           echo "leafname_deb=$deb" >> $GITHUB_OUTPUT
           echo "deb name is '$deb'"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: riscos-build-online-linux-tool
           path: riscos-build-online
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: riscos-build-online-linux-deb
           path: ${{ steps.version.outputs.leafname_deb }}
@@ -124,7 +124,7 @@ jobs:
           echo "leafname=$leafname" >> $GITHUB_OUTPUT
           echo "filename=$filename" >> $GITHUB_OUTPUT
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         with:
           name: riscos-build-online-riscos-tool
           path: ${{ steps.version.outputs.filename }}
