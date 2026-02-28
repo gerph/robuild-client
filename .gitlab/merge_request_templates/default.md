@@ -4,8 +4,6 @@
      Try to explain why they're needed and what they do.
      Your reviewers will use this to decide whether the
      change is sufficient and correct.
-     You can include pictures or diagrams in here
-     (see mermaid documentation on GitHub).
  -->
 
 %{first_multiline_commit_description}
