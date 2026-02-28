@@ -89,7 +89,7 @@ jobs:
           submodules: recursive
 
       - name: Download built Linux binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: riscos-build-online-linux-tool
           path: riscos-build-online-linux-tool
@@ -142,18 +142,18 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
       - name: Download built RISC OS binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: riscos-build-online-riscos-tool
           path: riscos-build-online-riscos-tool
 
       - name: Download built Linux binary
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: riscos-build-online-linux-tool
 
       - name: Download built Linux deb
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           name: riscos-build-online-linux-deb
 
