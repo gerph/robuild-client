@@ -118,9 +118,12 @@ jobs:
 
     runs-on: windows-latest
 
+    # This deliberately does not join the 'riscos-build-server' concurrency
+    # group that build-riscos uses. It is a short test, like the one that
+    # build-linux runs, and sharing the group would leave two jobs of each run
+    # queued against it; a pending request is cancelled when a later one is
+    # queued, so the RISC OS build would be cancelled.
     timeout-minutes: 5
-    concurrency:
-      group: riscos-build-server
 
     steps:
       - uses: actions/checkout@v6
