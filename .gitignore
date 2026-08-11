@@ -1,4 +1,6 @@
 *.o
 riscos-build-online
+riscos-build-online.exe
+build-win32/
 build_deb/
 riscos-build-online*.deb

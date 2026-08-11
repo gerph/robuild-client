@@ -54,6 +54,38 @@ Building a deb:
 to get a distributable deb containing the tool.
 
 
+## Building for Windows
+
+The Windows version is a cross-build using the mingw-w64 toolchain, so it can be built from
+Linux or MacOS without a Windows system being present. On Debian or Ubuntu the toolchain is
+installed with:
+
+    apt-get install gcc-mingw-w64-x86-64-win32
+
+Once the submodules are checked out, the tool is built with:
+
+    make -f Makefile.win
+
+to get `riscos-build-online.exe`, a 64-bit console application. It is statically linked, so
+no mingw runtime DLLs need to be distributed with it; only the system `KERNEL32`, `msvcrt`
+and `WS2_32` DLLs are required.
+
+The `PREFIX` variable selects the toolchain, and defaults to `x86_64-w64-mingw32-`.
+
+The build does not use libwsclient's `autogen`/`configure` process. Instead, the `win32`
+directory supplies:
+
+* Shim headers which redirect the POSIX socket headers used by libwsclient (`netdb.h`,
+  `sys/socket.h`, `netinet/in.h`, `arpa/inet.h` and `sys/un.h`) on to Winsock.
+* A replacement for the `config.h` that `configure` would have generated.
+* `winstart.c`, which initialises Winsock and enables ANSI escape sequence handling on the
+  console before `main` runs.
+
+This means that no changes are needed in the libwsclient or cJSON sources themselves.
+
+ANSI text formatting (the `-a` option) relies on the console supporting virtual terminal
+processing, which is available on Windows 10 and later. On earlier systems, use `-a off`.
+
 ## Building on RISC OS
 
 The template environment files are required, together with standard C and TCPIPLibs.

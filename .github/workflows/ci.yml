@@ -2,6 +2,7 @@
 # Automated build of the:
 #   * riscos-build-online tool for linux.
 #   * riscos-build-online deb for Linux.
+#   * riscos-build-online.exe for Windows.
 #   * riscos-build-online Absolute for RISC OS.
 
 
@@ -73,6 +74,66 @@ jobs:
           name: riscos-build-online-linux-deb
           path: ${{ steps.version.outputs.leafname_deb }}
 
+  # The Windows tool is cross-built with mingw-w64 on the Linux runner; only the
+  # test of the resulting binary needs a Windows system.
+  build-windows:
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    outputs:
+      leafname_tool: ${{ steps.version.outputs.leafname_tool }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Install the mingw-w64 cross compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64-win32
+
+      - name: Build the Windows binary
+        run: make -f Makefile.win
+
+      - name: Check that we built a Windows executable
+        run: |
+          file riscos-build-online.exe
+          file riscos-build-online.exe | grep -q 'PE32+ executable (console) x86-64'
+
+      - name: Work out the names of the files
+        id: version
+        run: |
+          echo "leafname_tool=riscos-build-online.exe" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: riscos-build-online-windows-tool
+          path: riscos-build-online.exe
+
+  # Check that the cross-built binary actually runs, on a real Windows system.
+  test-windows:
+    needs: build-windows
+
+    runs-on: windows-latest
+
+    timeout-minutes: 5
+    concurrency:
+      group: riscos-build-server
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download built Windows binary
+        uses: actions/download-artifact@v8
+        with:
+          name: riscos-build-online-windows-tool
+
+      - name: Run a test against the live build server
+        shell: bash
+        run: ./riscos-build-online.exe -i 'testfile,fd1'
+
   build-riscos:
     needs: build-linux
 
@@ -143,6 +204,8 @@ jobs:
     needs:
       - build-riscos
       - build-linux
+      - build-windows
+      - test-windows
 
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/v')
@@ -163,6 +226,11 @@ jobs:
         with:
           name: riscos-build-online-linux-deb
 
+      - name: Download built Windows binary
+        uses: actions/download-artifact@v8
+        with:
+          name: riscos-build-online-windows-tool
+
       - name: Archive the RISC OS file directory
         run: |
           zip -9r riscos-build-online-riscos-tool.zip riscos-build-online-riscos-tool
@@ -173,4 +241,4 @@ jobs:
         with:
           prerelease: false
           draft: true
-          artifacts: "riscos-build-online-riscos-tool.zip,${{ needs.build-linux.outputs.leafname_deb }},${{ needs.build-linux.outputs.leafname_tool }}"
+          artifacts: "riscos-build-online-riscos-tool.zip,${{ needs.build-linux.outputs.leafname_deb }},${{ needs.build-linux.outputs.leafname_tool }},${{ needs.build-windows.outputs.leafname_tool }}"

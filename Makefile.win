@@ -1,0 +1,104 @@
+# Build for the riscos-build-online tool, for Windows.
+#
+# This is a cross-build using the mingw-w64 toolchain, so it can be run from
+# Linux or MacOS without a Windows system being present. On Debian/Ubuntu the
+# toolchain is installed with:
+#
+#     apt-get install gcc-mingw-w64-x86-64-win32
+#
+# Unlike the Linux build, libwsclient's autogen/configure process is not used.
+# The library sources are compiled directly, with the headers in the 'win32'
+# directory standing in for the POSIX socket headers that Windows lacks, and
+# for the config.h that configure would have generated.
+#
+# Use:
+#     make -f Makefile.win
+#
+
+PREFIX    ?= x86_64-w64-mingw32-
+CC         = ${PREFIX}gcc
+AR         = ${PREFIX}ar
+
+OBJDIR     = build-win32
+TOOL       = riscos-build-online.exe
+
+# ${OBJDIR} comes first on the include path, because it holds the copies of the
+# libwsclient header and of our config.h; see the copy rules below.
+INCLUDES   = -I${OBJDIR} -Iwin32 -Ilibwsclient -IcJSON
+CFLAGS     = -g -O2 ${INCLUDES}
+# -static so that the tool needs no mingw runtime DLLs alongside it.
+LIBS       = -lws2_32 -lpthread -static
+
+# The libwsclient sources are built into an archive, rather than linked as
+# loose objects, because the library's base64_encode and base64_decode would
+# otherwise clash with the client's own versions of those functions. This
+# matches the way the Linux build links against libwsclient.a.
+LIB_WSCLIENT  = ${OBJDIR}/libwsclient.a
+WSCLIENT_OBJS = ${OBJDIR}/wsclient.o ${OBJDIR}/sha1.o ${OBJDIR}/ws-base64.o
+WSCLIENT_HDRS = ${OBJDIR}/config.h ${OBJDIR}/wsclient.h
+
+OBJS       = ${OBJDIR}/build.o \
+             ${OBJDIR}/base64_encode.o \
+             ${OBJDIR}/base64_decode.o \
+             ${OBJDIR}/cJSON.o \
+             ${OBJDIR}/winstart.o
+
+all: ${TOOL}
+
+.PHONY: all clean
+
+# Keep the copies of the library sources, so that they are not treated as
+# intermediate files and deleted, forcing a rebuild every time.
+.SECONDARY: ${OBJDIR}/wsclient.c ${OBJDIR}/sha1.c ${OBJDIR}/base64.c \
+            ${OBJDIR}/wsclient.h ${OBJDIR}/config.h
+
+clean:
+	-rm -rf ${OBJDIR}
+	-rm -f ${TOOL}
+
+${TOOL}: ${OBJS} ${LIB_WSCLIENT}
+	${CC} -g -o $@ ${OBJS} ${LIB_WSCLIENT} ${LIBS}
+
+${LIB_WSCLIENT}: ${WSCLIENT_OBJS}
+	-rm -f $@
+	${AR} rcs $@ ${WSCLIENT_OBJS}
+
+${OBJDIR}:
+	mkdir -p ${OBJDIR}
+
+${OBJDIR}/%.o: %.c | ${OBJDIR}
+	${CC} ${CFLAGS} -c -o $@ $<
+
+${OBJDIR}/build.o: build.c VersionNum ${WSCLIENT_HDRS} | ${OBJDIR}
+	${CC} ${CFLAGS} -c -o $@ build.c
+
+# The libwsclient sources and wsclient.h are compiled from copies in the object
+# directory, rather than in place, and our config.h is copied in beside them.
+# A quoted #include is resolved relative to the including file first, so
+# wsclient.h in libwsclient would otherwise pick up any config.h left there by
+# a previous Linux build. That matters beyond mere tidiness: HAVE_LIBSSL
+# changes the layout of the wsclient structure, so the whole build must agree
+# on one config.h.
+${OBJDIR}/config.h: win32/config.h | ${OBJDIR}
+	cp $< $@
+
+${OBJDIR}/%.h: libwsclient/%.h | ${OBJDIR}
+	cp $< $@
+
+${OBJDIR}/%.c: libwsclient/%.c | ${OBJDIR}
+	cp $< $@
+
+${OBJDIR}/wsclient.o: ${OBJDIR}/wsclient.c ${WSCLIENT_HDRS}
+	${CC} ${CFLAGS} -c -o $@ $<
+
+${OBJDIR}/sha1.o: ${OBJDIR}/sha1.c ${WSCLIENT_HDRS}
+	${CC} ${CFLAGS} -c -o $@ $<
+
+${OBJDIR}/ws-base64.o: ${OBJDIR}/base64.c ${WSCLIENT_HDRS}
+	${CC} ${CFLAGS} -c -o $@ $<
+
+${OBJDIR}/cJSON.o: cJSON/cJSON.c | ${OBJDIR}
+	${CC} ${CFLAGS} -c -o $@ $<
+
+${OBJDIR}/winstart.o: win32/winstart.c | ${OBJDIR}
+	${CC} ${CFLAGS} -c -o $@ $<
