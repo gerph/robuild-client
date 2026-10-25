@@ -100,7 +100,7 @@ jobs:
       - name: Check that we built a Windows executable
         run: |
           file riscos-build-online.exe
-          file riscos-build-online.exe | grep -q 'PE32+ executable (console) x86-64'
+          file riscos-build-online.exe | grep -q 'PE32+ executable.*(console).*x86-64'
 
       - name: Work out the names of the files
         id: version
